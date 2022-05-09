@@ -16,7 +16,7 @@ module.exports = {
 		ecmaVersion: 'latest',
 		sourceType: 'module',
 	},
-	plugins: ['react', '@typescript-eslint', 'react', 'react-hooks'],
+	plugins: ['react', '@typescript-eslint', 'react-hooks'],
 	rules: {
 		'react/react-in-jsx-scope': 'off',
 		'react-hooks/rules-of-hooks': 'error', // 检查 Hook 的规则
