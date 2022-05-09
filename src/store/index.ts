@@ -1,20 +1,21 @@
 import { createContext, useContext } from 'react'
-import { HomeStore } from './home'
-function createStores() {
+import rootStore, { RootStore } from './module'
+import homeStore, { HomeStore } from './module/home'
+export interface Stores {
+	HomeStore: HomeStore
+	RootStore: RootStore
+}
+function createAppStore(): Stores {
 	return {
-		HomeStore,
+		HomeStore: homeStore,
+		RootStore: rootStore,
 	}
 }
 
-const stores = createStores()
-
-const StoresContext = createContext(stores)
-
-const getStores = () => useContext(StoresContext)
-
-function useHomeStore() {
-	const { HomeStore } = getStores()
-	return HomeStore
+const appStores = createAppStore()
+const StoreContext = createContext(appStores)
+const getStores = () => useContext(StoreContext)
+const useStore = () => {
+	return getStores()
 }
-
-export { stores, useHomeStore, StoresContext }
+export { appStores, StoreContext, useStore }
