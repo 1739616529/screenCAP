@@ -20,7 +20,7 @@ function Home(): JSX.Element {
 
 	function set_options_fun<K extends keyof Options, V extends Options[K]>(option: { [key in K]: V }) {
 		const new_state = { ...options, ...option }
-		set_options(new_state)
+		set_options({ ...new_state })
 		videoTask.option = { ...new_state }
 		console.log(videoTask.option)
 	}
