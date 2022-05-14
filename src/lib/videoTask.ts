@@ -21,13 +21,7 @@ export interface VideoTypeItem<T> {
 	label: T
 	value: T
 }
-export type VideoTypeList = [
-	{
-		value: 'video/webm;codecs=vp9'
-		label: 'video/webm;codecs=vp9'
-	},
-	{ value: 'video/webm'; label: 'video/webm' }
-]
+export type VideoTypeList = string[]
 export type ErrCode = 0 | 1 | 2 | 3
 export interface ErrorInfo {
 	code: ErrCode
@@ -59,6 +53,9 @@ export interface ToIndexDBInstance {
 let err_msg_list: { [key: string]: ErrCode } = {
 	'Permission denied': 1,
 	'mediaDevices is not a function': 3,
+	'Unsupported video format': 3,
+	'captureStream is undefined': 3,
+	'mediaRecorder is undefined': 3,
 }
 export class VideoTask {
 	readonly HVGAList: HVGAList = {
@@ -66,18 +63,15 @@ export class VideoTask {
 		'720p': { video_bit: 28000000, audio_bit: 72000 },
 		'1080p': { video_bit: 280000000, audio_bit: 128000 },
 	}
-	readonly VideoTypeList: VideoTypeList = [
-		{
-			value: 'video/webm;codecs=vp9',
-			label: 'video/webm;codecs=vp9',
-		},
-		{ value: 'video/webm', label: 'video/webm' },
+	public VideoTypeList: VideoTypeList = [
+		'video/webm;codecs=vp9',
+		'video/webm',
 	]
 	private _option: Options = {
 		system_audio: true,
 		external_audio: true,
 		HVGA: '1080p',
-		HVGA_type: this.VideoTypeList[0].value,
+		HVGA_type: '',
 	}
 	private isAudit: Boolean = true
 	private captureStream?: MediaStream
@@ -145,13 +139,17 @@ export class VideoTask {
 	}
 	constructor() {
 		this.auditFunction() // 检车是否可以录制
+		this.filterSupperVideoType() // 过滤出支持的 内置视频格式
 	}
 
 	public start = async () => {
-		this.auditFunction()
 		if (this.isAudit === false) return
 		if (this.captureStream) return
-
+		if (
+			this.option.custom_HVGA_type &&
+			!this.isSupperVideoType(this.option.custom_HVGA_type)
+		)
+			return
 		try {
 			await this.createVideoTask()
 			this.createRecorder()
@@ -185,8 +183,6 @@ export class VideoTask {
 
 	private createVideoTask = async () => {
 		this.captureStream = await this.getVideoMedia()
-		console.log(this)
-		console.log(this._option)
 		if (this._option.external_audio) {
 			const audioStram = await this.getAudioStrem()
 			this.captureStream.addTrack(
@@ -198,8 +194,9 @@ export class VideoTask {
 	private getVideoMedia() {
 		return navigator.mediaDevices.getDisplayMedia({
 			video: true,
-			audio: false,
-			// audio: this._option.system_audio,
+			audio:
+				this._option.system_audio &&
+				!this._option.external_audio,
 		})
 	}
 
@@ -212,21 +209,16 @@ export class VideoTask {
 
 	private createRecorder() {
 		if (!this.captureStream)
-			return this.stateCallback.error(
-				'captureStream is undefined',
-				3
-			)
+			throw new Error('captureStream is undefined')
 
 		let mime_type: string =
 			this._option.custom_HVGA_type || this._option.HVGA_type
 
 		const is_supper = this.isSupperVideoType(mime_type)
 
-		if (!is_supper)
-			return this.stateCallback.error(
-				'Unsupported video format: ' + is_supper,
-				3
-			)
+		if (!is_supper) {
+			throw new Error('Unsupported video format')
+		}
 
 		this.mediaRecorder = new MediaRecorder(this.captureStream, {
 			mimeType: mime_type,
@@ -237,10 +229,7 @@ export class VideoTask {
 		})
 
 		if (!this.mediaRecorder)
-			return this.stateCallback.error(
-				'mediaRecorder is undefined',
-				3
-			)
+			throw new Error('mediaRecorder is undefined')
 
 		this.mediaRecorder.ondataavailable = this.seveMediaToLocale
 		this.mediaRecorder.start()
@@ -278,16 +267,20 @@ export class VideoTask {
 	}
 
 	private auditFunction() {
-		const logError = (
-			msg: string = 'mediaDevices is not a function'
-		) => {
+		try {
+			typeof window.navigator.mediaDevices === 'object'
+		} catch (err) {
+			const msg = 'mediaDevices is undefined'
 			this.isAudit = false
 			this.stateCallback.error(msg)
+			throw new Error(msg)
 		}
-		try {
-			if (!window.navigator.mediaDevices) logError()
-		} catch (err) {
-			logError()
-		}
+	}
+
+	private filterSupperVideoType() {
+		this.VideoTypeList = this.VideoTypeList.filter((v) =>
+			this.isSupperVideoType(v)
+		)
+		this._option.HVGA_type = this.VideoTypeList[0]
 	}
 }

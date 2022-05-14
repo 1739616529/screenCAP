@@ -7,39 +7,45 @@ import { VideoTask, OptionSet, Options, HVGAList } from 'src/lib/videoTask'
 import Button from 'src/components/Button/Button'
 import Switch, { SwitchEvent } from "src/components/Switch/Switch"
 import Select from "src/components/Select/Select"
+import { debounce, throttle } from "src/util/throttle"
+const videoTask = new VideoTask()
+
+let videoEl: HTMLVideoElement | undefined
+function get_show_video_el(): HTMLVideoElement {
+	if (!videoEl) videoEl = document.getElementById('show-video') as HTMLVideoElement
+	return videoEl
+}
+/** 监听开始 返回当前视频流 */
+videoTask.onstart = function (stream) {
+	get_show_video_el().srcObject = stream
+}
+
+videoTask.onerror = function (msg) {
+	console.log('↓↓↓↓↓↓↓↓↓↓↓     ERROR     ↓↓↓↓↓↓↓↓↓↓↓')
+	console.log(msg)
+}
+
+videoTask.onend = function (msg) {
+	console.log(msg)
+	get_show_video_el().srcObject = null
+}
+
+function create_className(...args: any[]) {
+	return args.filter(v => !!v).join(' ')
+}
+
 function Home(): JSX.Element {
-	const videoTask = new VideoTask()
 	const { count_list, filter_count_list } = useStore()['RootStore']
-	let videoEl: HTMLVideoElement | undefined
 	const [options, set_options] = useState(videoTask.option)
 	const [extra_option_model, set_extra_option_model] = useState(false)
-	function get_show_video_el(): HTMLVideoElement {
-		if (!videoEl) videoEl = document.getElementById('show-video') as HTMLVideoElement
-		return videoEl
-	}
-
+	const [is_supper, set_is_supper] = useState<boolean | null>(null)
 	function set_options_fun<K extends keyof Options, V extends Options[K]>(option: { [key in K]: V }) {
 		const new_state = { ...options, ...option }
-		set_options({ ...new_state })
-		videoTask.option = { ...new_state }
+		console.log(new_state)
+		set_options(new_state)
+		videoTask.option = new_state
 		console.log(videoTask.option)
 	}
-
-	/** 监听开始 返回当前视频流 */
-	videoTask.onstart = function (stream) {
-		get_show_video_el().srcObject = stream
-	}
-
-	videoTask.onerror = function (msg) {
-		console.log('↓↓↓↓↓↓↓↓↓↓↓     ERROR     ↓↓↓↓↓↓↓↓↓↓↓')
-		console.log(msg)
-	}
-
-	videoTask.onend = function (msg) {
-		console.log(msg)
-		get_show_video_el().srcObject = null
-	}
-
 	function start_fun() {
 		videoTask.start()
 	}
@@ -48,6 +54,13 @@ function Home(): JSX.Element {
 		videoTask.end()
 	}
 
+	function handle_custom_HVGA_type_input(e: any) {
+		const HCGA_type = e.target.value
+		set_options_fun({ custom_HVGA_type: HCGA_type })
+		if (!HCGA_type) return set_is_supper(null)
+		const is_supper = videoTask.isSupperVideoType(HCGA_type)
+		set_is_supper(is_supper)
+	}
 
 	return (
 		<div className="Home w-full h-full flex flex-col">
@@ -70,18 +83,31 @@ function Home(): JSX.Element {
 						<Button onClick={end_fun}>结束</Button>
 						<Button onClick={() => {
 							set_extra_option_model(!extra_option_model)
-						}} className="peer bg-white border text-black hover:bg-gray-100 ring-gray-200">高级设置</Button>
+						}}>高级设置</Button>
 						<div className={(extra_option_model ? "h-auto p-1 pt-3" : 'h-0') + " transition  overflow-hidden "} >
+							<div className="pb-2">高级设置: </div>
 							<Switch checked={options.system_audio} text="只系统声音" onChange={(e) => {
 								set_options_fun({ system_audio: e })
 							}} />
 							<Switch checked={options.external_audio} text="系统声音和麦克风声音" onChange={(e) => {
 								set_options_fun({ external_audio: e })
 							}} />
+							<div className="block mt-2">
+								<select onChange={(e) => {
+									set_options_fun({ HVGA_type: e.target.value })
+								}} defaultValue={options.HVGA_type} className="bg-gray-50 border w-auto inline-block border-gray-300 text-gray-900 text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 mr-2  p-2.5 dark:bg-gray-700 dark:border-gray-600 dark:placeholder-gray-400 dark:text-white dark:focus:ring-blue-500 dark:focus:border-blue-500">
+									{videoTask.VideoTypeList.map((v) => (
+										<option value={v} key={v}>{v}</option>
+									))}
+								</select>
+								<input onInput={debounce(handle_custom_HVGA_type_input)} type="text" placeholder="自定义视频格式. (若存在按此格式保存视频)" className="outline-none w-1/2  border ring-0 ring-blue-300 focus:ring-4 my-2 p-1 rounded-full px-5 text-sm font-medium" />
+								<span className={create_className('ml-2 text-sm font-medium', is_supper == true ? 'text-green-500' : is_supper == false ? "text-red-600" : '')}>{is_supper == true ? '支持' : is_supper == false ? '不支持' : ''}</span>
+							</div>
+
 						</div>
 					</div>
 				</div>
-				<div className="text-gray-300">test</div>
+				<div className="text-gray-300 md:block hidden">test</div>
 
 
 
