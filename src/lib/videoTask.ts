@@ -2,7 +2,7 @@ export interface HVGAItem {
 	video_bit: number
 	audio_bit: number
 }
-export interface Options extends HVGAItem {
+export interface Options {
 	system_audio: boolean // 系统音量
 	external_audio: boolean // 麦克风音量
 	HVGA: HVGA // 清晰度
@@ -61,10 +61,24 @@ let err_msg_list: { [key: string]: ErrCode } = {
 	'mediaDevices is not a function': 3,
 }
 export class VideoTask {
-	private default_HVGA: HVGA
-	readonly HVGAList: HVGAList
-	readonly VideoTypeList: VideoTypeList
-	private _option: Options
+	readonly HVGAList: HVGAList = {
+		'480p': { video_bit: 2800000, audio_bit: 64000 },
+		'720p': { video_bit: 28000000, audio_bit: 72000 },
+		'1080p': { video_bit: 280000000, audio_bit: 128000 },
+	}
+	readonly VideoTypeList: VideoTypeList = [
+		{
+			value: 'video/webm;codecs=vp9',
+			label: 'video/webm;codecs=vp9',
+		},
+		{ value: 'video/webm', label: 'video/webm' },
+	]
+	private _option: Options = {
+		system_audio: true,
+		external_audio: true,
+		HVGA: '1080p',
+		HVGA_type: this.VideoTypeList[0].value,
+	}
 	private isAudit: Boolean = true
 	private captureStream?: MediaStream
 	private mediaRecorder?: MediaRecorder
@@ -88,6 +102,7 @@ export class VideoTask {
 	public get running() {
 		return this._running
 	}
+
 	private stateCallback = {
 		error: (msg: string, code: ErrCode = 0) => {
 			let error_info: ErrorInfo = { code, msg }
@@ -130,34 +145,9 @@ export class VideoTask {
 	}
 	constructor() {
 		this.auditFunction() // 检车是否可以录制
-		this.default_HVGA = '1080p'
-		this.HVGAList = {
-			'480p': { video_bit: 2800000, audio_bit: 64000 },
-			'720p': { video_bit: 28000000, audio_bit: 72000 },
-			'1080p': { video_bit: 280000000, audio_bit: 128000 },
-		}
-		this.VideoTypeList = [
-			{
-				value: 'video/webm;codecs=vp9',
-				label: 'video/webm;codecs=vp9',
-			},
-			{ value: 'video/webm', label: 'video/webm' },
-		]
-		this._option = {
-			system_audio: true,
-			external_audio: true,
-			video_bit: this.HVGAList[this.default_HVGA][
-				'video_bit'
-			],
-			audio_bit: this.HVGAList[this.default_HVGA][
-				'audio_bit'
-			],
-			HVGA: this.default_HVGA,
-			HVGA_type: this.VideoTypeList[0].value,
-		}
 	}
 
-	public async start() {
+	public start = async () => {
 		this.auditFunction()
 		if (this.isAudit === false) return
 		if (this.captureStream) return
@@ -195,7 +185,7 @@ export class VideoTask {
 
 	private createVideoTask = async () => {
 		this.captureStream = await this.getVideoMedia()
-		console.log(this.option)
+		console.log(this)
 		console.log(this._option)
 		if (this._option.external_audio) {
 			const audioStram = await this.getAudioStrem()
@@ -240,8 +230,10 @@ export class VideoTask {
 
 		this.mediaRecorder = new MediaRecorder(this.captureStream, {
 			mimeType: mime_type,
-			audioBitsPerSecond: this._option.audio_bit,
-			videoBitsPerSecond: this._option.video_bit,
+			audioBitsPerSecond:
+				this.HVGAList[this._option.HVGA].audio_bit,
+			videoBitsPerSecond:
+				this.HVGAList[this._option.HVGA].video_bit,
 		})
 
 		if (!this.mediaRecorder)
