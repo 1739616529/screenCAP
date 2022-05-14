@@ -64,7 +64,7 @@ export class VideoTask {
 	private default_HVGA: HVGA
 	readonly HVGAList: HVGAList
 	readonly VideoTypeList: VideoTypeList
-	private option: Options
+	private _option: Options
 	private isAudit: Boolean = true
 	private captureStream?: MediaStream
 	private mediaRecorder?: MediaRecorder
@@ -143,7 +143,7 @@ export class VideoTask {
 			},
 			{ value: 'video/webm', label: 'video/webm' },
 		]
-		this.option = {
+		this._option = {
 			system_audio: true,
 			external_audio: true,
 			video_bit: this.HVGAList[this.default_HVGA][
@@ -185,37 +185,38 @@ export class VideoTask {
 		this.mediaRecorder = undefined
 	}
 
-	public set setOption(option: Options) {
-		this.option = { ...this.option, ...option }
+	public set option(option: Options) {
+		this._option = option
 	}
 
-	public get getOption() {
-		return this.option
+	public get option() {
+		return this._option
 	}
 
-	private async createVideoTask() {
+	private createVideoTask = async () => {
 		this.captureStream = await this.getVideoMedia()
-
-		// if (this.option.external_audio) {
-		// 	const audioStram = await this.getAudioStrem()
-		// 	this.captureStream.addTrack(
-		// 		audioStram.getAudioTracks()[0]
-		// 	)
-		// }
+		console.log(this.option)
+		console.log(this._option)
+		if (this._option.external_audio) {
+			const audioStram = await this.getAudioStrem()
+			this.captureStream.addTrack(
+				audioStram.getAudioTracks()[0]
+			)
+		}
 	}
 
 	private getVideoMedia() {
 		return navigator.mediaDevices.getDisplayMedia({
 			video: true,
 			audio: false,
-			// audio: this.option.external_audio,
+			// audio: this._option.system_audio,
 		})
 	}
 
 	private getAudioStrem() {
 		return navigator.mediaDevices.getUserMedia({
 			video: false,
-			audio: this.option.external_audio,
+			audio: true,
 		})
 	}
 
@@ -227,7 +228,7 @@ export class VideoTask {
 			)
 
 		let mime_type: string =
-			this.option.custom_HVGA_type || this.option.HVGA_type
+			this._option.custom_HVGA_type || this._option.HVGA_type
 
 		const is_supper = this.isSupperVideoType(mime_type)
 
@@ -239,8 +240,8 @@ export class VideoTask {
 
 		this.mediaRecorder = new MediaRecorder(this.captureStream, {
 			mimeType: mime_type,
-			audioBitsPerSecond: this.option.audio_bit,
-			videoBitsPerSecond: this.option.video_bit,
+			audioBitsPerSecond: this._option.audio_bit,
+			videoBitsPerSecond: this._option.video_bit,
 		})
 
 		if (!this.mediaRecorder)
