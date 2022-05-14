@@ -6,7 +6,10 @@ export default defineConfig({
 	plugins: [react()],
 	resolve: {
 		alias: {
-			'@': resolve('./src'),
+			src: resolve('./src'),
 		},
+	},
+	build: {
+		sourcemap: true,
 	},
 })
