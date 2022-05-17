@@ -56,6 +56,7 @@ let err_msg_list: { [key: string]: ErrCode } = {
 	'Unsupported video format': 3,
 	'captureStream is undefined': 3,
 	'mediaRecorder is undefined': 3,
+	'No microphone': 3,
 }
 export class VideoTask {
 	readonly HVGAList: HVGAList = {
@@ -116,6 +117,7 @@ export class VideoTask {
 				case 2:
 					break
 				case 3:
+					this.init()
 					this._running = false
 					break
 			}
@@ -156,6 +158,7 @@ export class VideoTask {
 			this.stateCallback.start(this.captureStream)
 		} catch (err) {
 			this.stateCallback.error(String(err))
+			throw new Error(String(err))
 		}
 	}
 
@@ -185,6 +188,7 @@ export class VideoTask {
 		this.captureStream = await this.getVideoMedia()
 		if (this._option.external_audio) {
 			const audioStram = await this.getAudioStrem()
+			if (!audioStram) return
 			this.captureStream.addTrack(
 				audioStram.getAudioTracks()[0]
 			)
@@ -201,10 +205,22 @@ export class VideoTask {
 	}
 
 	private getAudioStrem() {
-		return navigator.mediaDevices.getUserMedia({
-			video: false,
-			audio: true,
-		})
+		return navigator.mediaDevices
+			.getUserMedia({
+				video: false,
+				audio: true,
+			})
+			.catch((err) => {
+				console.log(err)
+				err = err.toString()
+				if (
+					err.search(
+						'Requested device not found'
+					) !== -1
+				)
+					return Promise.reject('No microphone')
+				Promise.reject(err)
+			})
 	}
 
 	private createRecorder() {
