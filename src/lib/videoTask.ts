@@ -163,12 +163,16 @@ export class VideoTask {
 	}
 
 	public end() {
-		if (!this.captureStream) return
 		if (!this.mediaRecorder) return
 		this.mediaRecorder.stop()
+		this.stopTasks()
+		this.init()
+	}
+
+	private stopTasks() {
+		if (!this.captureStream) return
 		const tast_list = this.captureStream.getTracks()
 		tast_list.forEach((task) => task.stop())
-		this.init()
 	}
 
 	private init() {
